@@ -6,15 +6,6 @@
 It provides a centralized platform where students can report campus-related issues, track complaint progress, and stay informed about resolutions, while administrators can efficiently manage complaints and prioritize important issues.
 
 > **Report smarter. Resolve faster. Build a better campus.**
-
-<p align="center">
-  <a href="https://github.com/shravani-repo/CampusFix">
-    <strong>View Repository</strong>
-  </a>
-</p>
-
----
-
 ## 📌 Problem Statement
 
 Campus infrastructure issues such as damaged classroom equipment, poor Wi-Fi connectivity, electrical problems, and maintenance requirements are often reported through informal communication channels.
