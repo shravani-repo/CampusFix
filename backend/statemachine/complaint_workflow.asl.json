@@ -1,0 +1,48 @@
+{
+  "Comment": "CampusFix: detect priority, triage, and alert admins about critical issues",
+  "StartAt": "DetectPriority",
+  "States": {
+    "DetectPriority": {
+      "Type": "Task",
+      "Resource": "${DetectPriorityArn}",
+      "Retry": [
+        { "ErrorEquals": ["States.ALL"], "IntervalSeconds": 2, "MaxAttempts": 3, "BackoffRate": 2.0 }
+      ],
+      "Catch": [{ "ErrorEquals": ["States.ALL"], "Next": "WorkflowFailed" }],
+      "Next": "ApplyTriage"
+    },
+    "ApplyTriage": {
+      "Type": "Task",
+      "Resource": "${ApplyTriageArn}",
+      "Retry": [
+        { "ErrorEquals": ["States.ALL"], "IntervalSeconds": 2, "MaxAttempts": 3, "BackoffRate": 2.0 }
+      ],
+      "Catch": [{ "ErrorEquals": ["States.ALL"], "Next": "WorkflowFailed" }],
+      "Next": "IsCritical"
+    },
+    "IsCritical": {
+      "Type": "Choice",
+      "Choices": [
+        { "Variable": "$.priority", "StringEquals": "Critical", "Next": "NotifyAdmins" }
+      ],
+      "Default": "Done"
+    },
+    "NotifyAdmins": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::sns:publish",
+      "Parameters": {
+        "TopicArn": "${AlertTopicArn}",
+        "Subject.$": "States.Format('CampusFix critical complaint {}', $.complaintId)",
+        "Message.$": "States.Format('{} ({}) was rated Critical and moved to Processing. Please act now.', $.title, $.complaintId)"
+      },
+      "ResultPath": null,
+      "Next": "Done"
+    },
+    "Done": { "Type": "Succeed" },
+    "WorkflowFailed": {
+      "Type": "Fail",
+      "Error": "TriageFailed",
+      "Cause": "Could not assign a priority to the complaint"
+    }
+  }
+}

@@ -1,0 +1,182 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Transform: AWS::Serverless-2016-10-31
+Description: CampusFix backend (Lambda, API Gateway, DynamoDB, S3, Step Functions)
+
+Parameters:
+  AdminEmail:
+    Type: String
+    Default: ""
+    Description: Optional. Receives alerts for Critical complaints (confirm the SNS email).
+  AllowedOrigin:
+    Type: String
+    Default: "*"
+    Description: Frontend URL allowed by CORS, e.g. https://main.xxxx.amplifyapp.com
+
+Conditions:
+  HasAdminEmail: !Not [!Equals [!Ref AdminEmail, ""]]
+
+Globals:
+  Function:
+    Runtime: python3.12
+    Timeout: 15
+    MemorySize: 256
+    CodeUri: src/
+    Environment:
+      Variables:
+        TABLE_NAME: !Ref ComplaintsTable
+        BUCKET_NAME: !Ref UploadsBucket
+
+Resources:
+  # ---------- Storage ----------
+  ComplaintsTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - { AttributeName: complaintId, AttributeType: S }
+        - { AttributeName: studentId, AttributeType: S }
+        - { AttributeName: createdAt, AttributeType: S }
+      KeySchema:
+        - { AttributeName: complaintId, KeyType: HASH }
+      GlobalSecondaryIndexes:
+        - IndexName: student-index
+          KeySchema:
+            - { AttributeName: studentId, KeyType: HASH }
+            - { AttributeName: createdAt, KeyType: RANGE }
+          Projection: { ProjectionType: ALL }
+
+  UploadsBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault: { SSEAlgorithm: AES256 }
+      CorsConfiguration:
+        CorsRules:
+          - AllowedMethods: [GET, POST]
+            AllowedOrigins: [!Ref AllowedOrigin]
+            AllowedHeaders: ["*"]
+            MaxAge: 3000
+
+  # ---------- API Gateway ----------
+  HttpApi:
+    Type: AWS::Serverless::HttpApi
+    Properties:
+      CorsConfiguration:
+        AllowOrigins: [!Ref AllowedOrigin]
+        AllowHeaders: [content-type, x-student-id, x-user-role]
+        AllowMethods: [GET, POST, PATCH, OPTIONS]
+
+  # ---------- API Lambdas ----------
+  CreateComplaintFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: handlers.create_complaint.handler
+      Environment:
+        Variables:
+          STATE_MACHINE_ARN: !Ref ComplaintWorkflow
+      Policies:
+        - DynamoDBCrudPolicy: { TableName: !Ref ComplaintsTable }
+        - StepFunctionsExecutionPolicy: { StateMachineName: !GetAtt ComplaintWorkflow.Name }
+      Events:
+        Api:
+          Type: HttpApi
+          Properties: { ApiId: !Ref HttpApi, Path: /complaints, Method: POST }
+
+  ListComplaintsFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: handlers.list_complaints.handler
+      Policies:
+        - DynamoDBReadPolicy: { TableName: !Ref ComplaintsTable }
+      Events:
+        Api:
+          Type: HttpApi
+          Properties: { ApiId: !Ref HttpApi, Path: /complaints, Method: GET }
+
+  GetComplaintFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: handlers.get_complaint.handler
+      Policies:
+        - DynamoDBReadPolicy: { TableName: !Ref ComplaintsTable }
+        - S3ReadPolicy: { BucketName: !Ref UploadsBucket }
+      Events:
+        Api:
+          Type: HttpApi
+          Properties: { ApiId: !Ref HttpApi, Path: "/complaints/{id}", Method: GET }
+
+  UpdateStatusFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: handlers.update_status.handler
+      Policies:
+        - DynamoDBCrudPolicy: { TableName: !Ref ComplaintsTable }
+      Events:
+        Api:
+          Type: HttpApi
+          Properties: { ApiId: !Ref HttpApi, Path: "/complaints/{id}", Method: PATCH }
+
+  GetUploadUrlFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: handlers.get_upload_url.handler
+      Policies:
+        - S3WritePolicy: { BucketName: !Ref UploadsBucket }
+      Events:
+        Api:
+          Type: HttpApi
+          Properties: { ApiId: !Ref HttpApi, Path: /upload-url, Method: POST }
+
+  # ---------- Workflow ----------
+  DetectPriorityFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: handlers.workflow_detect_priority.handler
+      Policies:
+        - DynamoDBReadPolicy: { TableName: !Ref ComplaintsTable }
+
+  ApplyTriageFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: handlers.workflow_apply_triage.handler
+      Policies:
+        - DynamoDBCrudPolicy: { TableName: !Ref ComplaintsTable }
+
+  AlertTopic:
+    Type: AWS::SNS::Topic
+
+  AlertSubscription:
+    Type: AWS::SNS::Subscription
+    Condition: HasAdminEmail
+    Properties:
+      TopicArn: !Ref AlertTopic
+      Protocol: email
+      Endpoint: !Ref AdminEmail
+
+  ComplaintWorkflow:
+    Type: AWS::Serverless::StateMachine
+    Properties:
+      DefinitionUri: statemachine/complaint_workflow.asl.json
+      DefinitionSubstitutions:
+        DetectPriorityArn: !GetAtt DetectPriorityFunction.Arn
+        ApplyTriageArn: !GetAtt ApplyTriageFunction.Arn
+        AlertTopicArn: !Ref AlertTopic
+      Policies:
+        - LambdaInvokePolicy: { FunctionName: !Ref DetectPriorityFunction }
+        - LambdaInvokePolicy: { FunctionName: !Ref ApplyTriageFunction }
+        - SNSPublishMessagePolicy: { TopicName: !GetAtt AlertTopic.TopicName }
+
+Outputs:
+  ApiUrl:
+    Description: Put this in frontend/.env as VITE_API_URL
+    Value: !Sub https://${HttpApi}.execute-api.${AWS::Region}.amazonaws.com
+  UploadsBucketName:
+    Value: !Ref UploadsBucket
+  StateMachineArn:
+    Value: !Ref ComplaintWorkflow
