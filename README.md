@@ -1,82 +1,307 @@
-# CampusFix: Report. Track. Resolve.
+# 🏫 CampusFix
+### A Better Campus Starts with a Better Way to Report Problems.
 
-Serverless campus issue reporting and resolution system.
-Students report problems with photos; the system prioritises them automatically; admins manage and analyse them.
+**CampusFix** is a smart campus complaint management system designed to simplify communication between students and college administration.
 
+It provides a centralized platform where students can report campus-related issues, track complaint progress, and stay informed about resolutions, while administrators can efficiently manage complaints and prioritize important issues.
+
+> **Report smarter. Resolve faster. Build a better campus.**
+
+<p align="center">
+  <a href="https://github.com/shravani-repo/CampusFix">
+    <strong>View Repository</strong>
+  </a>
+</p>
+
+---
+
+## 📌 Problem Statement
+
+Campus infrastructure issues such as damaged classroom equipment, poor Wi-Fi connectivity, electrical problems, and maintenance requirements are often reported through informal communication channels.
+
+This can lead to:
+- Delayed complaint handling.
+- Lack of transparency.
+- Difficulty tracking complaint progress.
+- Inefficient communication between students and administration.
+
+CampusFix addresses these challenges through a structured digital complaint management platform.
+
+---
+
+## ✨ Key Features
+
+### 👨‍🎓 Student Portal
+- Submit campus-related complaints.
+- Provide issue descriptions and details.
+- View previously submitted complaints.
+- Track complaint status.
+- Monitor resolution progress.
+
+### 🛠️ Admin Portal
+- View all submitted complaints.
+- Manage and prioritize reported issues.
+- Update complaint statuses.
+- Monitor resolution progress.
+- Access complaint analytics.
+
+### 🤖 Smart Priority Detection
+- Automatically identifies complaint priority.
+- Uses rule-based priority detection in the current demo.
+- Helps administrators identify issues requiring attention.
+
+### 📊 Complaint Tracking
+- Centralized complaint management.
+- Complaint status tracking:
+  - Pending
+  - Processing
+  - Resolved
+- Complaint timeline and progress monitoring.
+
+---
+
+## 🖥️ Technology Stack
+
+| Category | Technology |
+|---|---|
+| Frontend | React.js |
+| Build Tool | Vite |
+| Styling | Tailwind CSS |
+| Icons | Lucide React |
+| Backend | Python |
+| Serverless Computing | AWS Lambda |
+| API Management | Amazon API Gateway |
+| Database | Amazon DynamoDB |
+| File Storage | Amazon S3 |
+| Workflow Automation | AWS Step Functions |
+| Notifications | Amazon SNS |
+| Infrastructure as Code | AWS SAM |
+
+---
+
+## 🏗️ System Architecture
+
+CampusFix is designed around a serverless AWS architecture.
+
+```text
+             STUDENT / ADMIN
+                    |
+                    ▼
+              REACT FRONTEND
+                    |
+                    ▼
+              API GATEWAY
+                    |
+                    ▼
+               AWS LAMBDA
+                    |
+          ┌─────────┼──────────┐
+          ▼         ▼          ▼
+      DynamoDB     S3     Step Functions
+          |                    |
+          |                    ▼
+          |              Priority Detection
+          |                    |
+          |                    ▼
+          |              Complaint Triage
+          |                    |
+          └─────────┬──────────┘
+                    |
+                    ▼
+                 AWS SNS
+               Notifications
 ```
-campusfix/
-├── frontend/   React + Vite + Tailwind v4 + Recharts (9 pages)
-├── backend/    AWS SAM: Lambda (Python), API Gateway, DynamoDB, S3, Step Functions
-└── docs/       Architecture and API reference
+
+*Note: This represents the planned AWS backend architecture. The current local demonstration primarily uses mock mode.*
+
+---
+
+## 📂 Project Structure
+
+```text
+CampusFix/
+│
+├── backend/
+│   ├── src/
+│   │   ├── handlers/
+│   │   ├── common.py
+│   │   └── priority.py
+│   │
+│   ├── statemachine/
+│   ├── tests/
+│   ├── requirements-dev.txt
+│   └── template.yaml
+│
+├── docs/
+│   └── ARCHITECTURE.md
+│
+├── frontend/
+│   ├── public/
+│   ├── src/
+│   │   ├── api/
+│   │   ├── components/
+│   │   ├── context/
+│   │   ├── hooks/
+│   │   ├── pages/
+│   │   ├── App.jsx
+│   │   └── index.css
+│   │
+│   ├── .env.example
+│   ├── package.json
+│   └── vite.config.js
+│
+├── .gitignore
+└── README.md
 ```
 
-## 1. Try it now (no AWS needed)
+---
+
+## ⚙️ Getting Started
+
+Follow these instructions to run CampusFix locally.
+
+### Prerequisites
+
+Make sure you have installed:
+
+- [Node.js](https://nodejs.org/)
+- npm
+- Git
+
+### 1. Clone the Repository
 
 ```bash
-cd frontend
+git clone https://github.com/shravani-repo/CampusFix.git
+```
+
+### 2. Navigate to the Project
+
+```bash
+cd CampusFix/frontend
+```
+
+### 3. Install Dependencies
+
+```bash
 npm install
-cp .env.example .env     # VITE_USE_MOCK=true
-npm run dev              # http://localhost:5173
 ```
 
-Sign in with any email. Choose **Student** for the student side, **Admin** for the admin side.
-Mock mode includes 16 sample complaints, and new submissions are "triaged" after ~2.5 s to mimic the Step Functions workflow.
+### 4. Configure Environment Variables
 
-## 2. Deploy the backend
+Create your local environment file.
 
-Prerequisites: an AWS account, [AWS CLI](https://aws.amazon.com/cli/) (`aws configure`), and [AWS SAM CLI](https://docs.aws.amazon.com/serverless-application-model/latest/developerguide/install-sam-cli.html). Python 3.12.
+**Windows CMD:**
 
-```bash
-cd backend
-pip install -r requirements-dev.txt && python -m pytest    # optional: run tests
-sam build
-sam deploy --guided --parameter-overrides AdminEmail=you@college.edu
+```cmd
+copy .env.example .env
 ```
 
-- `AdminEmail` is optional. If set, confirm the SNS subscription email so you receive Critical alerts.
-- When it finishes, copy the **ApiUrl** output.
+Update the environment variables according to your configuration.
 
-## 3. Connect the frontend
+### 5. Run the Application
 
 ```bash
-cd frontend
-# .env
-VITE_USE_MOCK=false
-VITE_API_URL=<ApiUrl from sam deploy, no trailing slash>
 npm run dev
 ```
 
-## 4. Host the frontend
+Open the local development URL displayed in your terminal. By default, Vite usually uses:
 
-**Option A: AWS Amplify (easiest).** Push the repo to GitHub, create an Amplify app, connect the repo (it picks up `frontend/amplify.yml`). Add a rewrite rule: source `</^[^.]+$|\.(?!(css|gif|ico|jpg|js|png|txt|svg|woff|woff2|ttf|map|json|webp)$)([^.]+$)/>`, target `/index.html`, type `200 (Rewrite)`.
-
-**Option B: S3 static website.**
-```bash
-cd frontend && npm run build
-aws s3 mb s3://YOUR-UNIQUE-SITE-BUCKET
-aws s3 sync dist s3://YOUR-UNIQUE-SITE-BUCKET
-```
-Enable static website hosting with `index.html` as both the index and error document (the error document makes React Router deep links work), and allow public read, or front it with CloudFront.
-
-After hosting, redeploy the backend with your site URL so CORS is locked down:
-```bash
-sam deploy --parameter-overrides AllowedOrigin=https://your-site-url AdminEmail=you@college.edu
+```text
+http://localhost:5173
 ```
 
-## How the workflow runs
+---
 
-1. Student submits the form. The browser asks `/upload-url` for a presigned S3 POST and uploads the photo **directly to S3**.
-2. `POST /complaints` → Lambda validates and writes the item to DynamoDB (status `Pending`, priority empty).
-3. The same Lambda starts the **Step Functions** execution.
-4. `DetectPriority` Lambda applies keyword rules → `ApplyTriage` Lambda saves the priority.
-   Critical issues go straight to `Processing` and **SNS emails the admins**; others wait as `Pending`.
-5. Admins change status in Complaint Management. Students watch the timeline on Complaint Details.
+## 🧪 Demo Mode
 
-## Important: production hardening
+CampusFix currently supports a mock-data demonstration mode.
 
-This build identifies users with `x-student-id` / `x-user-role` headers so it works without extra services. **That is not secure**, since anyone can send an admin header. Before real use, add Amazon Cognito and a JWT authorizer on the HTTP API, then read the role from the token claims in `backend/src/common.py` (`caller()`).
+The demo allows users to explore the core application workflows without requiring a live AWS deployment.
 
-## Cost
+Available demonstration features:
 
-Everything is pay-per-use. A typical campus's volume stays within or close to the AWS free tier.
-To remove all resources: `sam delete` (empty the uploads bucket first).
+- Student login.
+- Admin login.
+- Complaint submission.
+- Rule-based priority detection.
+- Complaint status updates.
+- Student and admin dashboards.
+
+**Current limitations:**
+- Authentication is demonstration-only and is not production-grade.
+- Mock data may reset after refreshing the application.
+- Full AWS backend integration and deployment are not yet confirmed.
+
+---
+
+## 🧪 Backend Testing
+
+The backend includes Python tests for priority detection and workflow definitions.
+
+Navigate to the backend:
+
+```bash
+cd backend
+```
+
+Create a virtual environment:
+
+```bash
+python -m venv venv
+```
+
+Activate it on Windows:
+
+```cmd
+venv\Scripts\activate
+```
+
+Install development dependencies:
+
+```bash
+pip install -r requirements-dev.txt
+```
+
+Run tests:
+
+```bash
+pytest
+```
+
+---
+
+## 🔮 Future Enhancements
+
+- Secure authentication and role-based access control.
+- Complete AWS backend integration.
+- Real-time complaint notifications.
+- Image attachments for complaints.
+- Advanced analytics and reporting.
+- Complaint history and feedback.
+- Improved mobile responsiveness.
+
+---
+
+## 🎯 Project Vision
+
+CampusFix aims to transform traditional campus complaint handling into a more organized, transparent, and efficient digital experience.
+
+By connecting students and administrators through a centralized platform, it helps create a campus environment where problems are easier to report, track, and resolve.
+
+---
+
+## 👩‍💻 Developer
+
+**Shravani Raut**
+
+GitHub: [@shravani-repo](https://github.com/shravani-repo)
+
+Project: [CampusFix](https://github.com/shravani-repo/CampusFix)
+
+---
+
+<p align="center">
+  <strong>CampusFix</strong>
+  <br>
+  Making campus management smarter, one complaint at a time. 🏫
+</p>
